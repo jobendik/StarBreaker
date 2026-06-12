@@ -62,7 +62,7 @@ export function setMusicOn(on: boolean): void {
   if (AudioM.musicGain && AudioM.ctx)
     AudioM.musicGain.gain.linearRampToValueAtTime(on ? 0.3 : 0, AudioM.ctx.currentTime + 0.3);
   if (AudioM.trackGain && AudioM.ctx)
-    AudioM.trackGain.gain.linearRampToValueAtTime(on ? 1.0 : 0, AudioM.ctx.currentTime + 0.3);
+    AudioM.trackGain.gain.linearRampToValueAtTime(on ? 0.5 : 0, AudioM.ctx.currentTime + 0.3);
   if (activeTrack) {
     if (on) activeTrack.play().catch(() => {});
     else activeTrack.pause();
@@ -181,10 +181,10 @@ function initTracks(): void {
   if (!AudioM.ctx) return;
   const base = import.meta.env.BASE_URL;
   AudioM.trackGain = AudioM.ctx.createGain();
-  AudioM.trackGain.gain.value = meta.settings.music && !AudioM.muted ? 1.0 : 0;
+  AudioM.trackGain.gain.value = meta.settings.music && !AudioM.muted ? 0.5 : 0;
   AudioM.trackGain.connect(AudioM.master!);
   for (const name of ["main_menu", "game", "game_over"] as const) {
-    const el = new Audio(`${base}audio/music/${name}.mp3`);
+    const el = new Audio(`${base}audio/music/${name}.ogg`);
     el.loop = name !== "game_over";
     el.preload = "auto";
     AudioM.ctx.createMediaElementSource(el).connect(AudioM.trackGain);
@@ -205,7 +205,7 @@ export function musicPlay(name: "main_menu" | "game" | "game_over"): void {
   const ctx = AudioM.ctx;
   const prev = activeTrack;
   activeTrack = next;
-  const target = meta.settings.music && !AudioM.muted ? 1.0 : 0;
+  const target = meta.settings.music && !AudioM.muted ? 0.5 : 0;
 
   if (prev) {
     // Fade out current, swap, fade in next.
