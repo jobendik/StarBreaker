@@ -2,11 +2,12 @@
 
 import { game } from "../core/state";
 import { CFG } from "../config/tuning";
-import { rnd, segDist2 } from "../utils/math";
+import { TAU, rnd, segDist2, clamp } from "../utils/math";
 import { sfx } from "../core/audio";
-import { addParticle } from "./effects";
+import { addParticle, ring } from "./effects";
 import { damageEnemy } from "./combat";
-import type { Enemy, Weapon } from "../types";
+import { queryCircle } from "./grid";
+import type { Enemy, Weapon, WeaponUnit } from "../types";
 
 export function nearestEnemy(x: number, y: number, maxD = 1e9): Enemy | null {
   let best: Enemy | null = null;
@@ -65,6 +66,22 @@ export function updateWeapons(dt: number): void {
       w.ang = (w.ang || 0) + spin * dt;
       continue;
     }
+    if (w.type === "plasma") {
+      updatePlasma(w, dt);
+      continue;
+    }
+    if (w.type === "sentry") {
+      updateSentry(w, dt);
+      continue;
+    }
+    if (w.type === "drone") {
+      updateDrones(w, dt);
+      continue;
+    }
+    if (w.type === "squadron") {
+      updateSquadron(w, dt);
+      continue;
+    }
     w.t -= dt;
     if (w.t > 0) continue;
     fireWeapon(w);
@@ -82,6 +99,140 @@ function muzzle(color: string): void {
     7,
     color,
   );
+}
+
+function ensureUnits(w: Weapon, count: number): WeaponUnit[] {
+  if (!w._units) w._units = [];
+  while (w._units.length < count) {
+    w._units.push({ x: game.player.x, y: game.player.y, ang: rnd(TAU), t: rnd(0.05, 0.5) });
+  }
+  if (w._units.length > count) w._units.length = count;
+  return w._units;
+}
+
+function orbitUnits(w: Weapon, count: number, radius: number, spin: number, dt: number): WeaponUnit[] {
+  const { player } = game;
+  const units = ensureUnits(w, count);
+  w.ang = (w.ang || 0) + spin * dt;
+  const ease = clamp(dt * 11, 0, 1);
+  for (let i = 0; i < count; i++) {
+    const u = units[i];
+    const a = (w.ang || 0) + (i / count) * TAU;
+    const tx = player.x + Math.cos(a) * radius;
+    const ty = player.y + Math.sin(a) * radius;
+    u.x += (tx - u.x) * ease;
+    u.y += (ty - u.y) * ease;
+    u.ang = a;
+  }
+  return units;
+}
+
+function formationUnits(w: Weapon, count: number, dt: number): WeaponUnit[] {
+  const { player } = game;
+  const units = ensureUnits(w, count);
+  const right = player.angle + Math.PI / 2;
+  const ease = clamp(dt * 12, 0, 1);
+  for (let i = 0; i < count; i++) {
+    const mid = (count - 1) / 2;
+    const side = (i - mid) * 34;
+    const back = 34 + Math.abs(i - mid) * 10;
+    const tx = player.x - Math.cos(player.angle) * back + Math.cos(right) * side;
+    const ty = player.y - Math.sin(player.angle) * back + Math.sin(right) * side;
+    const u = units[i];
+    u.x += (tx - u.x) * ease;
+    u.y += (ty - u.y) * ease;
+    u.ang = player.angle;
+  }
+  return units;
+}
+
+function updatePlasma(w: Weapon, dt: number): void {
+  const { player } = game;
+  const lvl = w.level;
+  const ev = w.evolved;
+  const radius = (78 + (lvl - 1) * 12) * (ev ? 1.35 : 1);
+  const dps = (15 + (lvl - 1) * 6) * player.dmgMul * (ev ? 1.85 : 1);
+  const near = queryCircle(player.x, player.y, radius + 32);
+  for (const e of near) {
+    if (e.dead) continue;
+    const d = Math.hypot(e.x - player.x, e.y - player.y) || 1;
+    if (d < radius + e.r) {
+      const push = ev ? 1.15 : 0.55;
+      damageEnemy(e, dps * dt, ((e.x - player.x) / d) * push, ((e.y - player.y) / d) * push, true);
+      if (Math.random() < 0.08) addParticle(e.x, e.y, rnd(-25, 25), rnd(-25, 25), 0.18, 4, ev ? "#d5b7ff" : "#b388ff");
+    }
+  }
+  w.t -= dt;
+  if (w.t <= 0) {
+    w.t = ev ? 0.18 : 0.26;
+    ring(player.x, player.y, radius, ev ? "#d5b7ff" : "#b388ff", ev ? 3 : 2, 0.22);
+    for (let i = 0; i < 3; i++) {
+      const a = rnd(TAU);
+      addParticle(player.x + Math.cos(a) * radius * rnd(0.35, 1), player.y + Math.sin(a) * radius * rnd(0.35, 1), 0, 0, 0.22, 3, "#b388ff");
+    }
+  }
+}
+
+function updateSentry(w: Weapon, dt: number): void {
+  const lvl = w.level;
+  const ev = w.evolved;
+  const count = [1, 2, 2, 3, 3, 3, 4][Math.min(lvl - 1, 6)] + (ev ? 1 : 0);
+  const units = orbitUnits(w, count, 52 + lvl * 3, (0.9 + lvl * 0.06) * (ev ? 1.25 : 1), dt);
+  w.t -= dt;
+  if (w.t > 0) return;
+  w.t = Math.max(0.32, 1.05 - (lvl - 1) * 0.08) * game.player.fireMul * (ev ? 0.72 : 1);
+  const dmg = (9 + (lvl - 1) * 4) * game.player.dmgMul * (ev ? 1.55 : 1);
+  const pierce = ev ? 2 : lvl >= 6 ? 1 : 0;
+  for (const u of units) {
+    const tgt = nearestEnemy(u.x, u.y, 520);
+    if (!tgt) continue;
+    const a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+    spawnBullet(u.x, u.y, Math.cos(a) * 520, Math.sin(a) * 520, dmg, ev ? 5 : 4, pierce, ev ? "#d7f5ff" : "#79d7ff", ev);
+    u.ang = a;
+    addParticle(u.x, u.y, -Math.cos(a) * 30, -Math.sin(a) * 30, 0.12, 4, "#79d7ff");
+  }
+  sfx.shoot();
+}
+
+function updateDrones(w: Weapon, dt: number): void {
+  const lvl = w.level;
+  const ev = w.evolved;
+  const count = [1, 1, 2, 2, 2, 3, 3][Math.min(lvl - 1, 6)] + (ev ? 1 : 0);
+  const units = orbitUnits(w, count, 76 + lvl * 4, (1.2 + lvl * 0.08) * (ev ? 1.35 : 1), dt);
+  w.t -= dt;
+  if (w.t > 0) return;
+  w.t = Math.max(0.28, 0.88 - (lvl - 1) * 0.055) * game.player.fireMul * (ev ? 0.72 : 1);
+  const dmg = (7 + (lvl - 1) * 3.5) * game.player.dmgMul * (ev ? 1.55 : 1);
+  const pierce = ev || lvl >= 7 ? 1 : 0;
+  for (const u of units) {
+    const tgt = nearestEnemy(u.x, u.y, 620);
+    if (!tgt) continue;
+    const a = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+    spawnBullet(u.x, u.y, Math.cos(a) * 500, Math.sin(a) * 500, dmg, 4, pierce, ev ? "#b9ffd0" : "#7cfc8a", ev);
+    u.ang = a;
+  }
+  sfx.shoot();
+}
+
+function updateSquadron(w: Weapon, dt: number): void {
+  const lvl = w.level;
+  const ev = w.evolved;
+  const count = [1, 2, 2, 3, 3, 4, 4][Math.min(lvl - 1, 6)] + (ev ? 1 : 0);
+  const units = formationUnits(w, count, dt);
+  w.t -= dt;
+  if (w.t > 0) return;
+  w.t = Math.max(0.42, 1.25 - (lvl - 1) * 0.09) * game.player.fireMul * (ev ? 0.74 : 1);
+  const tgt = nearestEnemy(game.player.x, game.player.y, 780);
+  const base = tgt ? Math.atan2(tgt.y - game.player.y, tgt.x - game.player.x) : game.player.angle;
+  const dmg = (8 + (lvl - 1) * 3.8) * game.player.dmgMul * (ev ? 1.5 : 1);
+  const spread = (lvl >= 5 ? 0.12 : 0.07) * (ev ? 1.4 : 1);
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i];
+    const a = base + (i - (units.length - 1) / 2) * spread;
+    spawnBullet(u.x, u.y, Math.cos(a) * 560, Math.sin(a) * 560, dmg, ev ? 5 : 4, ev ? 1 : 0, ev ? "#fff0a8" : "#ffd34a", ev);
+    u.ang = a;
+  }
+  sfx.spread();
 }
 
 function fireWeapon(w: Weapon): void {
@@ -144,6 +295,28 @@ function fireWeapon(w: Weapon): void {
       t: 0,
       pull: ev,
     });
+    sfx.nova();
+  } else if (w.type === "snare") {
+    const tgt = nearestEnemy(player.x, player.y, 780);
+    if (!tgt) {
+      w.t = 0.2;
+      return;
+    }
+    w.t = Math.max(1.05, 3.0 - (lvl - 1) * 0.18) * fireMul * (ev ? 0.72 : 1);
+    const radius = (92 + (lvl - 1) * 13) * (ev ? 1.35 : 1);
+    const dmg = (14 + (lvl - 1) * 5.5) * dmgMul * (ev ? 1.75 : 1);
+    if (game.snares.length >= CFG.caps.snares) game.snares.shift();
+    game.snares.push({
+      x: tgt.x,
+      y: tgt.y,
+      r: radius,
+      dmg,
+      life: (1.8 + (lvl - 1) * 0.18) * (ev ? 1.35 : 1),
+      max: (1.8 + (lvl - 1) * 0.18) * (ev ? 1.35 : 1),
+      color: ev ? "#bfcaff" : "#7da6ff",
+      dead: false,
+    });
+    ring(tgt.x, tgt.y, radius, ev ? "#bfcaff" : "#7da6ff", ev ? 4 : 3, 0.35);
     sfx.nova();
   } else if (w.type === "railgun") {
     const tgt = nearestEnemy(player.x, player.y);

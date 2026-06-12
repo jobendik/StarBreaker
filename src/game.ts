@@ -133,6 +133,7 @@ function update(dt: number): void {
   game.bullets = game.bullets.filter((b) => !b.dead);
   game.missiles = game.missiles.filter((m) => !m.dead);
   game.novas = game.novas.filter((n) => !n.dead);
+  game.snares = game.snares.filter((s) => !s.dead);
   game.glaives = game.glaives.filter((g) => !g.dead);
   game.ebullets = game.ebullets.filter((b) => !b.dead);
 

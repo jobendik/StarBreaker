@@ -98,6 +98,17 @@ export interface Glaive {
   dead: boolean;
 }
 
+export interface Snare {
+  x: number;
+  y: number;
+  r: number;
+  dmg: number;
+  life: number;
+  max: number;
+  color: string;
+  dead: boolean;
+}
+
 export interface Beam {
   x: number;
   y: number;
@@ -218,6 +229,14 @@ export interface Weapon {
   evolved: boolean;
   ang?: number;
   _orbs?: Vec2[];
+  _units?: WeaponUnit[];
+}
+
+export interface WeaponUnit {
+  x: number;
+  y: number;
+  ang: number;
+  t: number;
 }
 
 export interface Player {
@@ -311,6 +330,7 @@ export interface MetaUpgrades {
   crit: number;
   dash: number;
   core: number;
+  xp: number;
 }
 
 export interface MetaStats {
@@ -347,6 +367,9 @@ export interface Meta {
   up: MetaUpgrades;
   ship: string;
   ships: string[];
+  weaponPool: string[];
+  skin: string;
+  skins: string[];
   stats: MetaStats;
   daily: MetaDaily;
   settings: MetaSettings;

@@ -5,7 +5,7 @@ import { game, MENU, PLAYING, LEVELUP, PAUSED, DEAD } from "../core/state";
 import { meta, saveMeta } from "../core/storage";
 import { audioInit, audioResume, sfx, setMusicOn, setSfxOn, musicSetIntensity } from "../core/audio";
 import { sdkReady, sdkStart, sdkStop, sdkHappy, sdkRewarded, sdkMidgame } from "../core/sdk";
-import { WDEF, PDEF, META_DEF, MetaDef, SHIPS, ACH_DEF } from "../config/definitions";
+import { WDEF, PDEF, META_DEF, MetaDef, SHIPS, ACH_DEF, WEAPON_SHOP, SKINS, skinById } from "../config/definitions";
 import { ICONS } from "../config/icons";
 import { fmtTime } from "../utils/math";
 import { buildOffers, applyOffer } from "../systems/progression";
@@ -17,6 +17,8 @@ import {
   todaysMissions,
   ensureDaily,
   claimCargo,
+  CARGO_REWARDS,
+  cargoRewardForStreak,
 } from "../systems/lifecycle";
 import { toast } from "../systems/effects";
 import type { CoreBreakdown, Offer, PassiveKey } from "../types";
@@ -57,11 +59,13 @@ function setTab(t: string): void {
 }
 
 function renderTab(): void {
-  ["hangar", "upgrades", "missions", "records"].forEach((t) => {
+  ["hangar", "upgrades", "weapons", "skins", "missions", "records"].forEach((t) => {
     $("tab-" + t).style.display = t === curTab ? "block" : "none";
   });
   if (curTab === "hangar") renderHangar();
   else if (curTab === "upgrades") renderShop();
+  else if (curTab === "weapons") renderWeapons();
+  else if (curTab === "skins") renderSkins();
   else if (curTab === "missions") renderMissions();
   else renderRecords();
 }
@@ -179,13 +183,151 @@ function renderShop(): void {
   });
 }
 
+function renderWeapons(): void {
+  const wrap = $("tab-weapons");
+  wrap.innerHTML = '<div class="dailyhead">WEAPONS<small>Unlocked weapons can appear in level-up drafts</small></div>';
+  const owned = new Set(meta.weaponPool || []);
+  for (const item of WEAPON_SHOP) {
+    const d = WDEF[item.type];
+    if (!d) continue;
+    const inPool = owned.has(item.type);
+    const row = document.createElement("div");
+    row.className = "weaponrow" + (inPool ? " owned" : "");
+    row.innerHTML =
+      '<div class="weaponico" style="--wc:' +
+      d.color +
+      '">' +
+      ICONS[d.icon] +
+      "</div>" +
+      '<div class="weaponcopy"><b>' +
+      d.name +
+      "</b><small>" +
+      d.base +
+      "</small></div>";
+    const btn = document.createElement("button");
+    btn.className = "buy" + (inPool ? " max" : "");
+    if (inPool) {
+      btn.textContent = "IN POOL";
+      btn.disabled = true;
+    } else {
+      btn.textContent = "◆ " + item.cost;
+      btn.disabled = meta.cores < item.cost;
+      btn.addEventListener("click", () => {
+        if (meta.cores < item.cost) return;
+        meta.cores -= item.cost;
+        if (meta.weaponPool.indexOf(item.type) < 0) meta.weaponPool.push(item.type);
+        saveMeta();
+        sfx.unlock();
+        toast("WEAPON UNLOCKED", d.name + " added to the draft pool", "◆", true);
+        $("m-cores").textContent = String(meta.cores);
+        renderWeapons();
+      });
+    }
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+}
+
+function renderSkins(): void {
+  const wrap = $("tab-skins");
+  const current = skinById(meta.skin);
+  wrap.innerHTML =
+    '<div class="dailyhead">SKINS<small>Active hull: ' +
+    current.name +
+    "</small></div>";
+  const grid = document.createElement("div");
+  grid.className = "skingrid";
+  for (const s of SKINS) {
+    const owned = meta.skins.indexOf(s.id) >= 0;
+    const active = meta.skin === s.id;
+    const el = document.createElement("div");
+    el.className = "skin" + (active ? " sel" : "") + (owned ? "" : " locked");
+    el.innerHTML =
+      '<div class="skinpreview" style="--sc:' +
+      s.color +
+      ";--sa:" +
+      s.accent +
+      '">' +
+      '<i class="shipshape ' +
+      s.id +
+      '"></i></div><div class="skinname">' +
+      s.name +
+      '</div><div class="shiprole">' +
+      s.desc +
+      "</div>";
+    const action = document.createElement("div");
+    action.className = "shipstate" + (!owned ? " buy" : active ? " sel" : "");
+    action.textContent = active ? "ACTIVE" : owned ? "SELECT" : "◆ " + s.cost;
+    el.appendChild(action);
+    el.addEventListener("click", () => {
+      if (owned) {
+        meta.skin = s.id;
+        saveMeta();
+        sfx.click();
+        renderSkins();
+      } else if (meta.cores >= s.cost) {
+        meta.cores -= s.cost;
+        meta.skins.push(s.id);
+        meta.skin = s.id;
+        saveMeta();
+        sfx.unlock();
+        toast("SKIN UNLOCKED", s.name + " hull equipped", "▲", true);
+        $("m-cores").textContent = String(meta.cores);
+        renderSkins();
+      } else {
+        sfx.click();
+      }
+    });
+    grid.appendChild(el);
+  }
+  wrap.appendChild(grid);
+}
+
 function renderMissions(): void {
   const wrap = $("tab-missions");
-  ensureDaily();
+  const daily = ensureDaily();
+  const claimable = daily.cargoAvailable;
+  const nextReward = cargoRewardForStreak(meta.daily.streak);
+  const activeDay = Math.min(meta.daily.streak + (claimable ? 1 : 0), CARGO_REWARDS.length);
+  let bonus =
+    '<div class="dailybonus"><div class="dailyhead">DAILY BONUS<small>Streak ' +
+    meta.daily.streak +
+    ' days</small></div><div class="bonusgrid">';
+  for (let i = 0; i < CARGO_REWARDS.length; i++) {
+    const day = i + 1;
+    const claimed = day <= meta.daily.streak && !claimable;
+    const active = day === activeDay && claimable;
+    bonus +=
+      '<div class="bonusday' +
+      (claimed ? " claimed" : "") +
+      (active ? " active" : "") +
+      '"><span>DAY ' +
+      day +
+      "</span><b>◆ " +
+      CARGO_REWARDS[i] +
+      "</b></div>";
+  }
+  bonus +=
+    '</div><button class="btn gold small" id="daily-claim"' +
+    (claimable ? "" : " disabled") +
+    ">" +
+    (claimable ? "CLAIM ◆ " + nextReward : "CLAIMED TODAY") +
+    "</button></div>";
   wrap.innerHTML =
+    bonus +
     '<div class="dailyhead">DAILY MISSIONS<small>New objectives every day · streak ' +
     meta.daily.streak +
     "🔥</small></div>";
+  const claimBtn = $("daily-claim") as HTMLButtonElement;
+  claimBtn.addEventListener("click", () => {
+    const amount = claimCargo();
+    if (amount <= 0) return;
+    $("m-cores").textContent = String(meta.cores);
+    $("m-cargo").style.display = "none";
+    toast("DAILY BONUS", "+" + amount + " ◆ claimed", "◆", true);
+    sfx.unlock();
+    renderMissions();
+  });
   for (const m of todaysMissions()) {
     const done = meta.daily.done.indexOf(m.id) >= 0;
     const row = document.createElement("div");

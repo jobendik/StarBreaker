@@ -84,6 +84,26 @@ export function updateProjectiles(dt: number): void {
     if (nv.t >= nv.dur) nv.dead = true;
   }
 
+  for (const sn of game.snares) {
+    if (sn.dead) continue;
+    sn.life -= dt;
+    const near = queryCircle(sn.x, sn.y, sn.r + 36);
+    for (const e of near) {
+      if (e.dead) continue;
+      const dx = sn.x - e.x;
+      const dy = sn.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < sn.r + e.r) {
+        const pull = e.boss ? 0.2 : 2.2 * (1 - d / (sn.r + e.r));
+        e.kbx += (dx / d) * pull;
+        e.kby += (dy / d) * pull;
+        damageEnemy(e, sn.dmg * dt, (dx / d) * 0.5, (dy / d) * 0.5, true);
+        if (Math.random() < 0.08) addParticle(e.x, e.y, (dx / d) * 18, (dy / d) * 18, 0.22, 3, sn.color);
+      }
+    }
+    if (sn.life <= 0) sn.dead = true;
+  }
+
   for (const g of game.glaives) {
     if (g.dead) continue;
     g.spin += 14 * dt;

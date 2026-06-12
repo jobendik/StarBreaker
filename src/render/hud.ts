@@ -112,6 +112,14 @@ function weaponGlyph(type: string, x: number, y: number, col: string): void {
     ctx.lineTo(x + 6, y - 1);
     ctx.moveTo(x - 6, y + 3);
     ctx.lineTo(x - 3, y + 6);
+  } else if (type === "sentry") {
+    ctx.rect(x - 6, y - 4, 12, 8);
+    ctx.moveTo(x, y - 4);
+    ctx.lineTo(x, y - 10);
+    ctx.moveTo(x - 4, y + 5);
+    ctx.lineTo(x - 7, y + 9);
+    ctx.moveTo(x + 4, y + 5);
+    ctx.lineTo(x + 7, y + 9);
   } else if (type === "nova") {
     ctx.arc(x, y, 2.4, 0, TAU_);
     ctx.moveTo(x + 6, y);
@@ -135,6 +143,35 @@ function weaponGlyph(type: string, x: number, y: number, col: string): void {
     ctx.arc(x, y, 6, 0.4, Math.PI * 1.5);
     ctx.moveTo(x + 6, y - 1);
     ctx.lineTo(x + 3, y - 5);
+  } else if (type === "plasma") {
+    ctx.arc(x, y, 3, 0, TAU_);
+    ctx.moveTo(x + 8, y);
+    ctx.arc(x, y, 8, 0, TAU_);
+  } else if (type === "drone") {
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i / 6) * TAU_;
+      const px = x + Math.cos(a) * 7;
+      const py = y + Math.sin(a) * 7;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  } else if (type === "snare") {
+    ctx.arc(x, y, 8, 0, TAU_);
+    ctx.moveTo(x - 5, y);
+    ctx.quadraticCurveTo(x, y - 6, x + 5, y);
+    ctx.moveTo(x - 4, y + 3);
+    ctx.quadraticCurveTo(x, y + 7, x + 4, y + 3);
+  } else if (type === "squadron") {
+    ctx.moveTo(x, y - 8);
+    ctx.lineTo(x + 5, y + 6);
+    ctx.lineTo(x, y + 3);
+    ctx.lineTo(x - 5, y + 6);
+    ctx.closePath();
+    ctx.moveTo(x - 8, y - 1);
+    ctx.lineTo(x - 11, y + 7);
+    ctx.moveTo(x + 8, y - 1);
+    ctx.lineTo(x + 11, y + 7);
   }
   ctx.stroke();
 }

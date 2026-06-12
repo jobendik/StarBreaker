@@ -18,6 +18,7 @@ import type {
   Player,
   Ring,
   Run,
+  Snare,
   Vec2,
 } from "../types";
 
@@ -119,6 +120,7 @@ interface GameState {
   bullets: Bullet[];
   missiles: Missile[];
   novas: Nova[];
+  snares: Snare[];
   glaives: Glaive[];
   beams: Beam[];
   arcs: Arc[];
@@ -150,6 +152,7 @@ export const game: GameState = {
   bullets: [],
   missiles: [],
   novas: [],
+  snares: [],
   glaives: [],
   beams: [],
   arcs: [],

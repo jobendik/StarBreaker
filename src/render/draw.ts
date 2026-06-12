@@ -2,7 +2,7 @@
 
 import { ctx, blit } from "../core/canvas";
 import { game } from "../core/state";
-import { shipById } from "../config/definitions";
+import { shipById, skinById } from "../config/definitions";
 import { meta } from "../core/storage";
 import { TAU, hexA, clamp, rnd } from "../utils/math";
 import type { Enemy } from "../types";
@@ -277,7 +277,9 @@ export function drawPickup(type: string, x: number, y: number, t: number): void 
 export function drawShip(x: number, y: number): void {
   const { player } = game;
   const ship = shipById(meta.ship);
-  const col = ship.color;
+  const skin = skinById(meta.skin);
+  const col = skin.id === "classic" ? ship.color : skin.color;
+  const accent = skin.id === "classic" ? "#eafcff" : skin.accent;
   const t = performance.now() * 0.001;
   ctx.save();
   ctx.translate(x, y);
@@ -300,12 +302,30 @@ export function drawShip(x: number, y: number): void {
 
   // Wings (darker steel).
   ctx.beginPath();
-  ctx.moveTo(0, -6);
-  ctx.lineTo(14, 11);
-  ctx.lineTo(9, 13);
-  ctx.lineTo(0, 6);
-  ctx.lineTo(-9, 13);
-  ctx.lineTo(-14, 11);
+  if (skin.id === "interceptor") {
+    ctx.moveTo(0, -7);
+    ctx.lineTo(19, 13);
+    ctx.lineTo(8, 11);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(-8, 11);
+    ctx.lineTo(-19, 13);
+  } else if (skin.id === "raptor") {
+    ctx.moveTo(0, -8);
+    ctx.lineTo(10, 6);
+    ctx.lineTo(17, 15);
+    ctx.lineTo(3, 9);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(-3, 9);
+    ctx.lineTo(-17, 15);
+    ctx.lineTo(-10, 6);
+  } else {
+    ctx.moveTo(0, -6);
+    ctx.lineTo(14, 11);
+    ctx.lineTo(9, 13);
+    ctx.lineTo(0, 6);
+    ctx.lineTo(-9, 13);
+    ctx.lineTo(-14, 11);
+  }
   ctx.closePath();
   ctx.fillStyle = "rgba(16,32,52,.92)";
   ctx.fill();
@@ -315,7 +335,7 @@ export function drawShip(x: number, y: number): void {
 
   // Main hull.
   const hg = ctx.createLinearGradient(0, -16, 0, 12);
-  hg.addColorStop(0, "rgba(220,250,255,.95)");
+  hg.addColorStop(0, skin.id === "lattice" ? "rgba(14,24,44,.95)" : "rgba(220,250,255,.95)");
   hg.addColorStop(0.35, hexA(col, 0.75));
   hg.addColorStop(1, "rgba(10,22,38,.95)");
   ctx.beginPath();
@@ -331,8 +351,30 @@ export function drawShip(x: number, y: number): void {
   ctx.strokeStyle = player.invuln > 0 ? "#ffffff" : hexA(col, 0.95);
   ctx.stroke();
 
+  if (skin.id === "lattice") {
+    ctx.strokeStyle = hexA(accent, 0.85);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -14);
+    ctx.lineTo(4.5, 11);
+    ctx.moveTo(0, -14);
+    ctx.lineTo(-4.5, 11);
+    ctx.moveTo(-4.5, 1);
+    ctx.lineTo(4.5, 1);
+    ctx.stroke();
+  } else if (skin.id === "interceptor" || skin.id === "raptor") {
+    ctx.strokeStyle = hexA(accent, 0.75);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-3, 4);
+    ctx.lineTo(-8, 12);
+    ctx.moveTo(3, 4);
+    ctx.lineTo(8, 12);
+    ctx.stroke();
+  }
+
   // Cockpit.
-  ctx.fillStyle = "#eafcff";
+  ctx.fillStyle = accent;
   ctx.beginPath();
   ctx.ellipse(0, -4, 2.4, 4, 0, 0, TAU);
   ctx.fill();

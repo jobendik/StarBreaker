@@ -24,7 +24,7 @@ export function recompute(): void {
   p.speedMul = (1 + 0.08 * P.speed) * (1 + 0.04 * meta.up.spd) * ship.speed;
   p.pickupMul = (1 + 0.3 * P.magnet) * (1 + 0.15 * meta.up.mag);
   p.regen = 0.6 * P.regen;
-  p.xpMul = 1 + 0.15 * P.greed;
+  p.xpMul = (1 + 0.15 * P.greed) * (1 + 0.08 * meta.up.xp);
   p.armor = Math.min(0.6, 0.1 * P.armor);
   p.critChance = 0.05 + 0.05 * P.crit + 0.02 * meta.up.crit + ship.crit;
   p.dashCdMax = CFG.player.dashCd * ship.dashCd * (1 - 0.08 * meta.up.dash);
@@ -43,6 +43,7 @@ export function startRun(): void {
   game.bullets = [];
   game.missiles = [];
   game.novas = [];
+  game.snares = [];
   game.glaives = [];
   game.beams = [];
   game.arcs = [];
@@ -234,11 +235,17 @@ export function ensureDaily(): { cargoAvailable: boolean } {
   return { cargoAvailable: !meta.daily.cargo };
 }
 
+export const CARGO_REWARDS = [50, 75, 100, 150, 200, 250, 300];
+
+export function cargoRewardForStreak(streak: number): number {
+  return CARGO_REWARDS[Math.min(Math.max(0, streak), CARGO_REWARDS.length - 1)];
+}
+
 export function claimCargo(): number {
   ensureDaily();
   if (meta.daily.cargo) return 0;
+  const amount = cargoRewardForStreak(meta.daily.streak);
   meta.daily.streak++;
-  const amount = Math.min(60, 20 + meta.daily.streak * 5);
   meta.daily.cargo = true;
   meta.cores += amount;
   saveMeta();

@@ -53,9 +53,11 @@ export function buildOffers(): Offer[] {
     if (w.level < d.max) pool.push({ kind: "wlvl", type: w.type });
   }
   const owned = new Set(player.weapons.map((w) => w.type));
-  if (player.weapons.length < 5) {
+  const unlocked = new Set(meta.weaponPool || []);
+  for (const w of player.weapons) unlocked.add(w.type);
+  if (player.weapons.length < 6) {
     for (const t in WDEF) {
-      if (!owned.has(t)) pool.push({ kind: "wnew", type: t });
+      if (!owned.has(t) && unlocked.has(t)) pool.push({ kind: "wnew", type: t });
     }
   }
   for (const t in PDEF) {

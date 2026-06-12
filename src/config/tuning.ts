@@ -36,6 +36,7 @@ export const CFG = {
     beams: 24,
     arcs: 30,
     glaives: 12,
+    snares: 10,
   },
 } as const;
 

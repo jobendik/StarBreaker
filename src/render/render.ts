@@ -4,9 +4,59 @@ import { ctx, view, blit } from "../core/canvas";
 import { game, MENU, PLAYING } from "../core/state";
 import { TAU, rnd, clamp, hexA } from "../utils/math";
 import { meta } from "../core/storage";
+import { WDEF } from "../config/definitions";
 import { renderBackground } from "./background";
 import { drawEnemy, drawGem, drawPickup, drawShip, drawShipGhost } from "./draw";
 import { drawHUD, drawAnnounces, drawBanner, drawJoystick } from "./hud";
+
+function drawCompanion(type: string, x: number, y: number, ang: number, color: string, evolved: boolean): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang + Math.PI / 2);
+  ctx.lineWidth = evolved ? 2 : 1.6;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = hexA(color, evolved ? 0.25 : 0.16);
+  if (type === "sentry") {
+    ctx.beginPath();
+    ctx.rect(-7, -5, 14, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(0, -14);
+    ctx.moveTo(-5, 7);
+    ctx.lineTo(-9, 12);
+    ctx.moveTo(5, 7);
+    ctx.lineTo(9, 12);
+    ctx.stroke();
+  } else if (type === "squadron") {
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(8, 9);
+    ctx.lineTo(0, 5);
+    ctx.lineTo(-8, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i / 6) * TAU;
+      const px = Math.cos(a) * 8;
+      const py = Math.sin(a) * 8;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.5, 0, TAU);
+    ctx.fillStyle = evolved ? "#ffffff" : color;
+    ctx.fill();
+  }
+  ctx.restore();
+}
 
 export function render(): void {
   const { cam, shake, player, run, joy } = game;
@@ -48,6 +98,14 @@ export function render(): void {
   for (const w of player.weapons) {
     if (w.type === "orbital" && w._orbs)
       for (const o of w._orbs) blit(w.evolved ? "#ffd34a" : "#9af2ff", sX(o.x), sY(o.y), w.evolved ? 26 : 16);
+    if (w.type === "plasma") {
+      const radius = (78 + (w.level - 1) * 12) * (w.evolved ? 1.35 : 1);
+      blit(w.evolved ? "#d5b7ff" : "#b388ff", sX(player.x), sY(player.y), radius * 0.55);
+    }
+    if (w._units) {
+      const color = WDEF[w.type]?.color || "#9af2ff";
+      for (const u of w._units) blit(w.evolved ? "#ffffff" : color, sX(u.x), sY(u.y), w.evolved ? 18 : 13);
+    }
   }
   for (const gl of game.glaives) blit(gl.evolved ? "#eaffc0" : "#d6ff7d", sX(gl.x), sY(gl.y), gl.r * 1.8);
   for (const m of game.missiles) blit("#ffb24a", sX(m.x), sY(m.y), 12);
@@ -99,6 +157,22 @@ export function render(): void {
     ctx.lineWidth = r.lw * (0.5 + k);
     ctx.beginPath();
     ctx.arc(sX(r.x), sY(r.y), r.r, 0, TAU);
+    ctx.stroke();
+  }
+  // Warp snares.
+  for (const sn of game.snares) {
+    const k = clamp(sn.life / sn.max, 0, 1);
+    const pulse = 1 + Math.sin(time * 8 + sn.x * 0.01) * 0.03;
+    ctx.strokeStyle = hexA(sn.color, k * 0.75);
+    ctx.lineWidth = 2.5 + k * 2;
+    ctx.beginPath();
+    ctx.arc(sX(sn.x), sY(sn.y), sn.r * pulse, 0, TAU);
+    ctx.stroke();
+    ctx.strokeStyle = hexA("#ffffff", k * 0.35);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(sX(sn.x), sY(sn.y), sn.r * 0.52, time * 1.8, time * 1.8 + Math.PI * 1.35);
+    ctx.arc(sX(sn.x), sY(sn.y), sn.r * 0.3, time * -2.1, time * -2.1 + Math.PI * 1.25);
     ctx.stroke();
   }
   // Novas.
@@ -157,6 +231,23 @@ export function render(): void {
           ctx.fill();
         }
       }
+    if (w.type === "plasma") {
+      const radius = (78 + (w.level - 1) * 12) * (w.evolved ? 1.35 : 1);
+      const al = w.evolved ? 0.16 : 0.1;
+      ctx.fillStyle = hexA(w.evolved ? "#d5b7ff" : "#b388ff", al);
+      ctx.beginPath();
+      ctx.arc(sX(player.x), sY(player.y), radius, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = hexA(w.evolved ? "#ffffff" : "#b388ff", w.evolved ? 0.35 : 0.24);
+      ctx.lineWidth = w.evolved ? 2 : 1.5;
+      ctx.beginPath();
+      ctx.arc(sX(player.x), sY(player.y), radius, 0, TAU);
+      ctx.stroke();
+    }
+    if ((w.type === "sentry" || w.type === "drone" || w.type === "squadron") && w._units) {
+      const color = w.evolved ? "#ffffff" : WDEF[w.type].color;
+      for (const u of w._units) drawCompanion(w.type, sX(u.x), sY(u.y), u.ang, color, w.evolved);
+    }
   }
   // Glaive blades.
   for (const gl of game.glaives) {

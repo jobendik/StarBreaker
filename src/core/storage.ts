@@ -1,6 +1,7 @@
 // Persistent meta-progression storage (guarded against unavailable localStorage).
 
 import type { Meta } from "../types";
+import { BASE_WEAPONS, SKINS } from "../config/definitions";
 
 const STORE = "starbreaker_meta_v2";
 const LEGACY = "voiddrift_meta_v1";
@@ -10,9 +11,12 @@ function defaults(): Meta {
     cores: 0,
     best: 0,
     ach: [],
-    up: { hp: 0, dmg: 0, spd: 0, mag: 0, rev: 0, crit: 0, dash: 0, core: 0 },
+    up: { hp: 0, dmg: 0, spd: 0, mag: 0, rev: 0, crit: 0, dash: 0, core: 0, xp: 0 },
     ship: "vanguard",
     ships: ["vanguard"],
+    weaponPool: BASE_WEAPONS.slice(),
+    skin: "classic",
+    skins: ["classic"],
     stats: {
       kills: 0,
       bosses: 0,
@@ -43,6 +47,12 @@ export function loadMeta(): void {
       meta.up = Object.assign(d.up, o.up || {});
       meta.ship = o.ship || "vanguard";
       meta.ships = Array.isArray(o.ships) && o.ships.length ? o.ships : ["vanguard"];
+      meta.weaponPool = Array.isArray(o.weaponPool) && o.weaponPool.length ? o.weaponPool : BASE_WEAPONS.slice();
+      for (const w of BASE_WEAPONS) if (meta.weaponPool.indexOf(w) < 0) meta.weaponPool.push(w);
+      meta.skin = o.skin || "classic";
+      meta.skins = Array.isArray(o.skins) && o.skins.length ? o.skins : ["classic"];
+      if (meta.skins.indexOf("classic") < 0) meta.skins.push("classic");
+      if (!SKINS.some((s) => s.id === meta.skin)) meta.skin = "classic";
       meta.stats = Object.assign(d.stats, o.stats || {});
       meta.daily = Object.assign(d.daily, o.daily || {});
       meta.settings = Object.assign(d.settings, o.settings || {});
@@ -65,6 +75,9 @@ export function loadMeta(): void {
         meta.up.mag = o.up.mag || 0;
         meta.up.rev = o.up.rev || 0;
       }
+      meta.weaponPool = BASE_WEAPONS.slice();
+      meta.skin = "classic";
+      meta.skins = ["classic"];
       saveMeta();
     }
   } catch (e) {

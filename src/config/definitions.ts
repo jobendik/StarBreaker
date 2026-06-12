@@ -38,10 +38,10 @@ export const WDEF: Record<string, WeaponDef> = {
     evoPassive: "haste",
   },
   orbital: {
-    name: "Orbital Ring",
+    name: "Orbital Shield",
     icon: "orbital",
     max: 7,
-    base: "Orbs circle you, shredding on contact.",
+    base: "Rotating energy shields shred enemies on contact.",
     ups: ["", "+1 orb", "wider orbit", "+damage", "+1 orb", "faster spin", "+1 orb"],
     color: "#9af2ff",
     evoName: "BLADE CYCLONE",
@@ -49,15 +49,26 @@ export const WDEF: Record<string, WeaponDef> = {
     evoPassive: "armor",
   },
   missile: {
-    name: "Seeker Pods",
+    name: "Missile Launcher",
     icon: "missile",
     max: 7,
-    base: "Homing missiles that blast on impact.",
+    base: "Launches homing rockets that explode on impact.",
     ups: ["", "+damage", "+1 missile", "bigger blast", "faster fire", "+1 missile", "+damage"],
     color: "#ffb24a",
     evoName: "CATACLYSM SWARM",
     evoDesc: "Twice the missiles, huge blasts",
     evoPassive: "magnet",
+  },
+  sentry: {
+    name: "Sentry Turret",
+    icon: "sentry",
+    max: 7,
+    base: "Deploys auto-turrets that track nearby enemies.",
+    ups: ["", "+1 turret", "+damage", "faster fire", "+range", "+1 turret", "+damage"],
+    color: "#79d7ff",
+    evoName: "WATCHTOWER GRID",
+    evoDesc: "Turrets fire piercing synchronized volleys",
+    evoPassive: "crit",
   },
   nova: {
     name: "Pulse Nova",
@@ -71,10 +82,10 @@ export const WDEF: Record<string, WeaponDef> = {
     evoPassive: "maxhp",
   },
   railgun: {
-    name: "Rail Lance",
+    name: "Laser Cannon",
     icon: "railgun",
     max: 7,
-    base: "Devastating beam that pierces everything.",
+    base: "Charges a piercing laser beam through the swarm.",
     ups: ["", "+damage", "faster charge", "+damage", "wider beam", "faster charge", "+damage"],
     color: "#ff9af2",
     evoName: "ANNIHILATOR",
@@ -82,7 +93,7 @@ export const WDEF: Record<string, WeaponDef> = {
     evoPassive: "crit",
   },
   tesla: {
-    name: "Arc Coil",
+    name: "Lightning Ray",
     icon: "tesla",
     max: 7,
     base: "Lightning chains between nearby foes.",
@@ -93,17 +104,133 @@ export const WDEF: Record<string, WeaponDef> = {
     evoPassive: "greed",
   },
   glaive: {
-    name: "Void Glaive",
+    name: "Flux Scythe",
     icon: "glaive",
     max: 7,
-    base: "Boomerang blade that returns to you.",
+    base: "Throws a crescent blade that carves back to you.",
     ups: ["", "+damage", "longer throw", "+1 glaive", "+damage", "longer throw", "+1 glaive"],
     color: "#d6ff7d",
     evoName: "TWIN REAVERS",
     evoDesc: "Huge twin blades carve the void",
     evoPassive: "speed",
   },
+  plasma: {
+    name: "Plasma Field",
+    icon: "plasma",
+    max: 7,
+    base: "Projects a close-range energy field around your ship.",
+    ups: ["", "larger field", "+damage", "stronger pulse", "larger field", "+damage", "overcharged edge"],
+    color: "#b388ff",
+    evoName: "CORONA FURNACE",
+    evoDesc: "A huge plasma halo burns and staggers enemies",
+    evoPassive: "armor",
+  },
+  drone: {
+    name: "Alien Drone",
+    icon: "drone",
+    max: 7,
+    base: "A companion drone circles you and fires at targets.",
+    ups: ["", "+damage", "+1 drone", "faster fire", "+damage", "+1 drone", "piercing shots"],
+    color: "#7cfc8a",
+    evoName: "HIVE ESCORT",
+    evoDesc: "Drones fire piercing bio-lasers",
+    evoPassive: "speed",
+  },
+  snare: {
+    name: "Warp Snare",
+    icon: "snare",
+    max: 7,
+    base: "Drops gravity wells that pull and damage enemies.",
+    ups: ["", "larger snare", "+damage", "longer duration", "faster cast", "+damage", "stronger pull"],
+    color: "#7da6ff",
+    evoName: "GRAVITY MAW",
+    evoDesc: "Long-lived snares crush everything inside",
+    evoPassive: "magnet",
+  },
+  squadron: {
+    name: "Squadron",
+    icon: "squadron",
+    max: 7,
+    base: "Wingmates fly formation and fire coordinated salvos.",
+    ups: ["", "+1 wingmate", "+damage", "faster salvos", "+spread", "+1 wingmate", "+damage"],
+    color: "#ffd34a",
+    evoName: "ACE FORMATION",
+    evoDesc: "Wingmates unleash piercing crossfire",
+    evoPassive: "haste",
+  },
 };
+
+export interface WeaponUnlockDef {
+  type: string;
+  cost: number;
+  defaultOwned: boolean;
+}
+
+export const WEAPON_SHOP: WeaponUnlockDef[] = [
+  { type: "pulse", cost: 0, defaultOwned: true },
+  { type: "spread", cost: 0, defaultOwned: true },
+  { type: "orbital", cost: 0, defaultOwned: true },
+  { type: "missile", cost: 0, defaultOwned: true },
+  { type: "sentry", cost: 0, defaultOwned: true },
+  { type: "railgun", cost: 0, defaultOwned: true },
+  { type: "tesla", cost: 0, defaultOwned: true },
+  { type: "nova", cost: 1200, defaultOwned: false },
+  { type: "plasma", cost: 1500, defaultOwned: false },
+  { type: "drone", cost: 1500, defaultOwned: false },
+  { type: "snare", cost: 1500, defaultOwned: false },
+  { type: "glaive", cost: 1500, defaultOwned: false },
+  { type: "squadron", cost: 1500, defaultOwned: false },
+];
+
+export const BASE_WEAPONS = WEAPON_SHOP.filter((w) => w.defaultOwned).map((w) => w.type);
+
+export interface SkinDef {
+  id: string;
+  name: string;
+  desc: string;
+  cost: number;
+  color: string;
+  accent: string;
+}
+
+export const SKINS: SkinDef[] = [
+  {
+    id: "classic",
+    name: "Vector",
+    desc: "Clean scout silhouette",
+    cost: 0,
+    color: "#46e0ff",
+    accent: "#eafcff",
+  },
+  {
+    id: "interceptor",
+    name: "Interceptor",
+    desc: "Wide fins and hot thrusters",
+    cost: 500,
+    color: "#7df1ff",
+    accent: "#ffcf4a",
+  },
+  {
+    id: "raptor",
+    name: "Raptor",
+    desc: "Split-wing strike frame",
+    cost: 1500,
+    color: "#9af2ff",
+    accent: "#ff5c8a",
+  },
+  {
+    id: "lattice",
+    name: "Lattice",
+    desc: "Wireframe prism hull",
+    cost: 3000,
+    color: "#b388ff",
+    accent: "#7cfc8a",
+  },
+];
+
+export function skinById(id: string): SkinDef {
+  return SKINS.find((s) => s.id === id) || SKINS[0];
+}
 
 export interface PassiveDef {
   name: string;
@@ -133,10 +260,11 @@ export interface MetaDef {
 }
 
 export const META_DEF: MetaDef[] = [
-  { key: "hp", name: "Reinforced Hull", sub: "+20 starting integrity", max: 5, base: 40 },
+  { key: "hp", name: "Hull Plating", sub: "+20 starting integrity", max: 5, base: 40 },
   { key: "dmg", name: "Power Core", sub: "+6% starting damage", max: 5, base: 60 },
-  { key: "spd", name: "Ion Drive", sub: "+4% move speed", max: 5, base: 60 },
+  { key: "spd", name: "Engine Boost", sub: "+4% move speed", max: 5, base: 60 },
   { key: "mag", name: "Magnetic Coils", sub: "+15% pickup range", max: 5, base: 40 },
+  { key: "xp", name: "XP Amplifier", sub: "+8% XP gained", max: 5, base: 70 },
   { key: "crit", name: "Targeting Suite", sub: "+2% critical chance", max: 5, base: 70 },
   { key: "dash", name: "Phase Capacitor", sub: "-8% dash cooldown", max: 5, base: 70 },
   { key: "core", name: "Salvage Rig", sub: "+10% cores earned", max: 5, base: 90 },
@@ -194,7 +322,7 @@ export const SHIPS: ShipDef[] = [
     id: "bastion",
     name: "BASTION",
     role: "Armored juggernaut",
-    desc: "+40 hull, -8% speed. Starts with the Orbital Ring.",
+    desc: "+40 hull, -8% speed. Starts with the Orbital Shield.",
     weapon: "orbital",
     hp: 40,
     speed: 0.92,
@@ -209,7 +337,7 @@ export const SHIPS: ShipDef[] = [
     id: "reaper",
     name: "REAPER",
     role: "Critical striker",
-    desc: "+15% damage, +10% crit, -20 hull. Starts with the Arc Coil.",
+    desc: "+15% damage, +10% crit, -20 hull. Starts with the Lightning Ray.",
     weapon: "tesla",
     hp: -20,
     speed: 1.04,
