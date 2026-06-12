@@ -7,6 +7,7 @@ interface AudioManager {
   ctx: AudioContext | null;
   master: GainNode | null;
   musicGain: GainNode | null;
+  trackGain: GainNode | null;
   muted: boolean;
   last: Record<string, number>;
 }
@@ -15,6 +16,7 @@ export const AudioM: AudioManager = {
   ctx: null,
   master: null,
   musicGain: null,
+  trackGain: null,
   muted: false,
   last: {},
 };
@@ -33,6 +35,7 @@ export function audioInit(): void {
     AudioM.musicGain.connect(AudioM.master);
     loadSamples();
     startMusic();
+    initTracks();
   } catch (e) {
     /* ignore */
   }
@@ -58,6 +61,12 @@ export function setMusicOn(on: boolean): void {
   saveMeta();
   if (AudioM.musicGain && AudioM.ctx)
     AudioM.musicGain.gain.linearRampToValueAtTime(on ? 0.3 : 0, AudioM.ctx.currentTime + 0.3);
+  if (AudioM.trackGain && AudioM.ctx)
+    AudioM.trackGain.gain.linearRampToValueAtTime(on ? 1.0 : 0, AudioM.ctx.currentTime + 0.3);
+  if (activeTrack) {
+    if (on) activeTrack.play().catch(() => {});
+    else activeTrack.pause();
+  }
 }
 
 export function setSfxOn(on: boolean): void {
@@ -159,6 +168,71 @@ function playSample(name: string, rateVar?: number): boolean {
   g.connect(AudioM.master!);
   src.start();
   return true;
+}
+
+// ── Sampled music tracks ─────────────────────────────────────────────────────
+// Three HTMLAudioElements connected via createMediaElementSource → trackGain →
+// master. Crossfade on switch; procedural sequencer is stopped once wired.
+
+const musicEls: Partial<Record<"main_menu" | "game" | "game_over", HTMLAudioElement>> = {};
+let activeTrack: HTMLAudioElement | null = null;
+
+function initTracks(): void {
+  if (!AudioM.ctx) return;
+  const base = import.meta.env.BASE_URL;
+  AudioM.trackGain = AudioM.ctx.createGain();
+  AudioM.trackGain.gain.value = meta.settings.music && !AudioM.muted ? 1.0 : 0;
+  AudioM.trackGain.connect(AudioM.master!);
+  for (const name of ["main_menu", "game", "game_over"] as const) {
+    const el = new Audio(`${base}audio/music/${name}.mp3`);
+    el.loop = name !== "game_over";
+    el.preload = "auto";
+    AudioM.ctx.createMediaElementSource(el).connect(AudioM.trackGain);
+    musicEls[name] = el;
+  }
+  // Real tracks wired — stop the procedural step-sequencer.
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  // First audioInit() is always on the menu screen.
+  musicPlay("main_menu");
+}
+
+export function musicPlay(name: "main_menu" | "game" | "game_over"): void {
+  const next = musicEls[name];
+  if (!next || !AudioM.ctx || !AudioM.trackGain) return;
+  if (activeTrack === next) return;
+
+  const g = AudioM.trackGain;
+  const ctx = AudioM.ctx;
+  const prev = activeTrack;
+  activeTrack = next;
+  const target = meta.settings.music && !AudioM.muted ? 1.0 : 0;
+
+  if (prev) {
+    // Fade out current, swap, fade in next.
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    g.gain.linearRampToValueAtTime(0, t + 0.6);
+    setTimeout(() => {
+      prev.pause();
+      prev.currentTime = 0;
+      next.currentTime = 0;
+      if (target > 0) {
+        next.play().catch(() => {});
+        const t2 = AudioM.ctx!.currentTime;
+        g.gain.setValueAtTime(0, t2);
+        g.gain.linearRampToValueAtTime(target, t2 + 0.6);
+      }
+    }, 650);
+  } else {
+    next.currentTime = 0;
+    if (target > 0) {
+      next.play().catch(() => {});
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(target, t + 0.6);
+    }
+  }
 }
 
 export const sfx = {

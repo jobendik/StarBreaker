@@ -6,7 +6,7 @@ import { view } from "../core/canvas";
 import { CFG } from "../config/tuning";
 import { meta, saveMeta } from "../core/storage";
 import { sdkStart, sdkStop } from "../core/sdk";
-import { sfx, musicSetIntensity, musicSetBoss } from "../core/audio";
+import { sfx, musicSetIntensity, musicSetBoss, musicPlay } from "../core/audio";
 import { shipById, SHIPS, MISSION_POOL, MissionDef } from "../config/definitions";
 import { seededRand, dateSeed, todayKey } from "../utils/math";
 import { xpReq } from "./progression";
@@ -119,6 +119,7 @@ export function startRun(): void {
   game.hintT = meta.stats.runs === 0 ? 14 : 0;
   hideAll();
   game.last = performance.now();
+  musicPlay("game");
   musicSetIntensity(0.3);
   musicSetBoss(false);
   sdkStart();
@@ -127,6 +128,7 @@ export function startRun(): void {
 export function onDeath(): void {
   game.state = DEAD;
   sdkStop();
+  musicPlay("game_over");
   musicSetIntensity(0.12);
   musicSetBoss(false);
   sfx.gameover();
@@ -140,7 +142,7 @@ export function onVictory(): void {
   sdkStop();
   musicSetBoss(false);
   musicSetIntensity(0.2);
-  showVictory();
+  showVictory(); // showVictory triggers musicPlay("game_over")
 }
 
 export function continueOverdrive(): void {

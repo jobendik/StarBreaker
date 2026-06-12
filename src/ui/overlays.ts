@@ -3,7 +3,7 @@
 
 import { game, MENU, PLAYING, LEVELUP, PAUSED, DEAD } from "../core/state";
 import { meta, saveMeta } from "../core/storage";
-import { audioInit, audioResume, sfx, setMusicOn, setSfxOn, musicSetIntensity } from "../core/audio";
+import { audioInit, audioResume, sfx, setMusicOn, setSfxOn, musicSetIntensity, musicPlay } from "../core/audio";
 import { sdkReady, sdkStart, sdkStop, sdkHappy, sdkRewarded, sdkMidgame } from "../core/sdk";
 import { WDEF, PDEF, META_DEF, MetaDef, SHIPS, ACH_DEF, WEAPON_SHOP, SKINS, skinById } from "../config/definitions";
 import { ICONS } from "../config/icons";
@@ -39,6 +39,7 @@ export function hideAll(): void {
 export function showMenu(): void {
   game.state = MENU;
   musicSetIntensity(0.15);
+  musicPlay("main_menu");
   hideAll();
   const daily = ensureDaily();
   $("m-cores").textContent = String(meta.cores);
@@ -640,6 +641,7 @@ function showFinal(title: string, sub: string): void {
 }
 
 export function showVictory(): void {
+  musicPlay("game_over");
   $("v-stats").innerHTML = statGrid();
   $("victory").classList.add("show");
 }
