@@ -1,4 +1,4 @@
-// Shared type definitions for the VOID DRIFT game.
+// Shared type definitions for STARBREAKER.
 
 export interface Vec2 {
   x: number;
@@ -27,7 +27,18 @@ export interface Enemy {
   spv: number;
   flash: number;
   boss: boolean;
+  elite: boolean;
   dead: boolean;
+  spawnT: number; // spawn-in animation timer (counts down)
+  // Behaviour state (dasher charge phases, spitter fire timer, boss attacks).
+  phase: number;
+  pt: number;
+  tx: number;
+  ty: number;
+  fireT: number;
+  atkT: number;
+  bossKind: string;
+  name: string;
 }
 
 export interface Bullet {
@@ -42,6 +53,7 @@ export interface Bullet {
   life: number;
   hits: number;
   hit: Set<number> | null;
+  trail: boolean;
   dead: boolean;
 }
 
@@ -66,7 +78,65 @@ export interface Nova {
   hit: Set<number>;
   dur: number;
   t: number;
+  pull: boolean;
   dead?: boolean;
+}
+
+export interface Glaive {
+  x: number;
+  y: number;
+  ang: number;
+  spin: number;
+  dist: number;
+  maxDist: number;
+  speed: number;
+  dmg: number;
+  r: number;
+  state: 0 | 1; // 0 = outbound, 1 = returning
+  hit: Set<number>;
+  evolved: boolean;
+  dead: boolean;
+}
+
+export interface Beam {
+  x: number;
+  y: number;
+  ang: number;
+  len: number;
+  w: number;
+  life: number;
+  max: number;
+  color: string;
+}
+
+export interface Arc {
+  pts: Vec2[];
+  life: number;
+  max: number;
+  color: string;
+}
+
+export interface Ring {
+  x: number;
+  y: number;
+  r: number;
+  maxR: number;
+  life: number;
+  max: number;
+  color: string;
+  lw: number;
+}
+
+export interface EBullet {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  dmg: number;
+  life: number;
+  color: string;
+  dead: boolean;
 }
 
 export interface Gem {
@@ -79,12 +149,15 @@ export interface Gem {
   mag: boolean;
 }
 
+export type PickupType = "heal" | "magnet" | "bomb" | "coin";
+
 export interface Pickup {
-  type: string;
+  type: PickupType;
   x: number;
   y: number;
   r: number;
   value: number;
+  t: number;
 }
 
 export interface Particle {
@@ -105,6 +178,7 @@ export interface FloatingText {
   color: string;
   life: number;
   max: number;
+  size: number;
 }
 
 export interface Announce {
@@ -113,6 +187,15 @@ export interface Announce {
   size: number;
   life: number;
   max: number;
+}
+
+export interface TrailPoint {
+  x: number;
+  y: number;
+  ang: number;
+  life: number;
+  max: number;
+  dash: boolean;
 }
 
 export type PassiveKey =
@@ -132,6 +215,7 @@ export interface Weapon {
   type: string;
   level: number;
   t: number;
+  evolved: boolean;
   ang?: number;
   _orbs?: Vec2[];
 }
@@ -158,6 +242,13 @@ export interface Player {
   xpMul: number;
   armor: number;
   critChance: number;
+  // Dash state.
+  dashCd: number;
+  dashT: number;
+  dashX: number;
+  dashY: number;
+  dashCdMax: number;
+  trail: TrailPoint[];
 }
 
 export interface Run {
@@ -168,10 +259,14 @@ export interface Run {
   xpNeed: number;
   pendingLevel: number;
   nextBoss: number;
+  bossIndex: number;
   bannerT: number;
   banner: string;
+  bannerColor: string;
   revivesLeft: number;
+  adRevivesLeft: number;
   reviveFlash: number;
+  levelFlash: number;
   finalized: boolean;
   streak: number;
   maxStreak: number;
@@ -180,6 +275,21 @@ export interface Run {
   multiKillTime: number;
   lastMilestone: number;
   score: number;
+  // New progression / director state.
+  sector: number;
+  coins: number;
+  gems: number;
+  elites: number;
+  bosses: number;
+  dashes: number;
+  nextEventT: number;
+  lastEvent: string;
+  nextEliteT: number;
+  titanAlive: boolean;
+  titanDead: boolean;
+  overdrive: boolean;
+  rerolls: number;
+  lowHpT: number;
 }
 
 export interface Joystick {
@@ -198,6 +308,36 @@ export interface MetaUpgrades {
   spd: number;
   mag: number;
   rev: number;
+  crit: number;
+  dash: number;
+  core: number;
+}
+
+export interface MetaStats {
+  kills: number;
+  bosses: number;
+  runs: number;
+  time: number;
+  bestTime: number;
+  bestSector: number;
+  evolved: number;
+  dashes: number;
+  titans: number;
+}
+
+export interface MetaDaily {
+  date: string;
+  streak: number;
+  cargo: boolean; // true = today's cargo already claimed
+  done: string[]; // mission ids completed today
+}
+
+export interface MetaSettings {
+  music: boolean;
+  sfx: boolean;
+  shake: boolean;
+  dmgText: boolean;
+  muted: boolean;
 }
 
 export interface Meta {
@@ -205,12 +345,25 @@ export interface Meta {
   best: number;
   ach: string[];
   up: MetaUpgrades;
+  ship: string;
+  ships: string[];
+  stats: MetaStats;
+  daily: MetaDaily;
+  settings: MetaSettings;
 }
 
 export interface Offer {
-  kind: "wnew" | "wlvl" | "plvl" | "heal" | "bomb";
+  kind: "wnew" | "wlvl" | "plvl" | "evo" | "heal" | "bomb" | "greed";
   type?: string;
   lv?: number;
   rarity?: "common" | "epic" | "legendary";
   lvls?: number;
+}
+
+export interface CoreBreakdown {
+  scoreCores: number;
+  coins: number;
+  missions: { name: string; reward: number }[];
+  total: number;
+  newBest: boolean;
 }

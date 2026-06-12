@@ -1,14 +1,15 @@
 {
-  "name": "void-drift",
+  "name": "starbreaker",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
-  "description": "VOID DRIFT — a fast-paced survival arena shooter rendered on HTML canvas.",
+  "description": "STARBREAKER — a fast-paced arcade survival shooter rendered on HTML canvas.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke": "esbuild scripts/smoke-entry.ts --bundle --format=esm --platform=node --outfile=node_modules/.tmp-smoke.mjs --log-level=warning && node node_modules/.tmp-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

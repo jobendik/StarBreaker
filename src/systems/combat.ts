@@ -1,25 +1,22 @@
 // Damage application, enemy death, drops, and all collision resolution.
 
-import { game } from "../core/state";
+import { game, screenFlash } from "../core/state";
 import { CFG, ENEMIES } from "../config/tuning";
 import { TAU, rnd } from "../utils/math";
-import { sfx } from "../core/audio";
+import { sfx, musicSetBoss } from "../core/audio";
 import { sdkHappy } from "../core/sdk";
+import { meta } from "../core/storage";
 import { queryCircle } from "./grid";
-import { addParticle, popText, announce, unlockAch, checkAch } from "./effects";
-import { onDeath } from "./lifecycle";
-import type { Enemy } from "../types";
+import { addParticle, dmgText, announce, unlockAch, checkAch, ring, burst, hitStop } from "./effects";
+import { orbsFor, orbitRadius, orbitDps } from "./weapons";
+import { onDeath, onVictory } from "./lifecycle";
+import type { Enemy, PickupType } from "../types";
 
-export function damageEnemy(
-  e: Enemy,
-  dmg: number,
-  kbx: number,
-  kby: number,
-  quiet?: boolean,
-): void {
+export function damageEnemy(e: Enemy, dmg: number, kbx: number, kby: number, quiet?: boolean): void {
+  if (e.dead) return;
   let crit = false;
   if (!quiet && game.player.critChance > 0 && Math.random() < game.player.critChance) {
-    dmg *= 1.6 + Math.random() * 0.8;
+    dmg *= 1.7 + Math.random() * 0.6;
     crit = true;
   }
   e.hp -= dmg;
@@ -28,14 +25,33 @@ export function damageEnemy(
     e.kbx += kbx;
     e.kby += kby;
   }
-  if (!quiet) sfx.hit();
-  if (crit) {
-    popText(e.x, e.y - 6, "CRIT " + Math.round(dmg), "#ffd34a");
-    game.shake.mag = Math.max(game.shake.mag, 3.5);
+  if (!quiet) {
+    sfx.hit();
+    dmgText(e.x, e.y - 6, dmg, crit);
   }
+  if (crit) game.shake.mag = Math.max(game.shake.mag, 3);
   if (Math.random() < 0.5)
     addParticle(e.x, e.y, kbx * 6 + rnd(-30, 30), kby * 6 + rnd(-30, 30), 0.25, 3, crit ? "#ffd34a" : e.color);
   if (e.hp <= 0) killEnemy(e);
+}
+
+function maybeDropPickup(e: Enemy): void {
+  const types: PickupType[] = ["heal", "magnet", "bomb"];
+  if (e.elite) {
+    const t = types[Math.floor(Math.random() * types.length)];
+    game.pickups.push({ type: t, x: e.x, y: e.y, r: 12, value: t === "heal" ? 0.3 : 1, t: 0 });
+    game.pickups.push({ type: "coin", x: e.x + rnd(-20, 20), y: e.y + rnd(-20, 20), r: 10, value: 1, t: 0 });
+    if (Math.random() < 0.6)
+      game.pickups.push({ type: "coin", x: e.x + rnd(-26, 26), y: e.y + rnd(-26, 26), r: 10, value: 1, t: 0 });
+    return;
+  }
+  const r = Math.random();
+  if (r < 0.006) {
+    const t = types[Math.floor(Math.random() * types.length)];
+    game.pickups.push({ type: t, x: e.x, y: e.y, r: 12, value: t === "heal" ? 0.3 : 1, t: 0 });
+  } else if (r < 0.016) {
+    game.pickups.push({ type: "coin", x: e.x, y: e.y, r: 10, value: 1, t: 0 });
+  }
 }
 
 function killEnemy(e: Enemy): void {
@@ -43,6 +59,7 @@ function killEnemy(e: Enemy): void {
   e.dead = true;
   const run = game.run;
   run.kills++;
+  meta.stats.kills++;
   const now = run.time;
   if (now - run.multiKillTime < 1.2) run.multiKill++;
   else run.multiKill = 1;
@@ -52,29 +69,74 @@ function killEnemy(e: Enemy): void {
   run.lastKillTime = now;
   if (run.multiKill >= 2) {
     const names = ["", "", "DOUBLE KILL", "TRIPLE KILL", "MEGA KILL", "ULTRA KILL", "MONSTER KILL", "GODLIKE"];
-    announce(names[Math.min(run.multiKill, 7)], run.multiKill >= 5 ? "#ffd34a" : "#9af2ff", 40 + Math.min(run.multiKill, 6) * 3);
+    announce(
+      names[Math.min(run.multiKill, 7)],
+      run.multiKill >= 5 ? "#ffd34a" : "#9af2ff",
+      40 + Math.min(run.multiKill, 6) * 3,
+    );
   }
   if (run.streak % 10 === 0 && run.streak > run.lastMilestone) {
     announce("COMBO x" + run.streak, "#46e0ff", 46);
     run.lastMilestone = run.streak;
+    sfx.combo();
     sdkHappy();
   }
-  run.score += Math.round((e.xp * 8 + 4) * (1 + run.streak * 0.04) * (1 + (run.multiKill - 1) * 0.12));
-  checkAch();
-  const np = e.boss ? 34 : 10;
+  run.score += Math.round(
+    (e.xp * 8 + 4) *
+      (1 + Math.min(run.streak, 50) * 0.04) *
+      (1 + Math.min(run.multiKill - 1, 6) * 0.12) *
+      (1 + (run.sector - 1) * 0.1),
+  );
+
+  // Death visuals.
+  const np = e.boss ? 34 : e.elite ? 20 : 10;
   for (let i = 0; i < np; i++) {
     const a = rnd(TAU);
     const s = rnd(40, e.boss ? 320 : 180);
     addParticle(e.x, e.y, Math.cos(a) * s, Math.sin(a) * s, rnd(0.3, 0.7), rnd(3, e.boss ? 10 : 7), e.color);
   }
-  game.shake.mag = Math.max(game.shake.mag, e.boss ? 16 : 2.4);
+  ring(e.x, e.y, e.boss ? 200 : e.elite ? 90 : 44, e.color, e.boss ? 5 : 2.5, e.boss ? 0.6 : 0.35);
+  game.shake.mag = Math.max(game.shake.mag, e.boss ? 16 : e.elite ? 6 : 2.4);
+
   if (e.boss) {
-    sfx.explode();
-    announce("SENTINEL DOWN", "#ffcf4a", 44);
-    unlockAch("sentinel");
+    run.bosses++;
+    meta.stats.bosses++;
+    sfx.bigExplode();
+    burst(e.x, e.y, "#ffffff", 16, 260, 5);
+    unlockAch("boss1");
+    if (meta.stats.bosses >= 10) unlockAch("boss10");
+    // Reward shower.
+    for (let i = 0; i < 4; i++) dropGem(e.x + rnd(-30, 30), e.y + rnd(-30, 30), 10);
+    game.pickups.push({ type: "heal", x: e.x, y: e.y, r: 13, value: 0.35, t: 0 });
+    for (let i = 0; i < 5; i++)
+      game.pickups.push({ type: "coin", x: e.x + rnd(-50, 50), y: e.y + rnd(-50, 50), r: 10, value: 1, t: 0 });
+    if (!game.enemies.some((b) => b.boss && !b.dead && b !== e)) musicSetBoss(false);
+    if (e.bossKind === "titan") {
+      run.titanAlive = false;
+      run.titanDead = true;
+      meta.stats.titans++;
+      unlockAch("titan");
+      hitStop(0.9);
+      screenFlash("#b14bff", 0.8);
+      announce("TITAN DESTROYED", "#ffd34a", 52);
+      sfx.victory();
+      onVictory();
+    } else {
+      hitStop(0.35);
+      screenFlash("#ffffff", 0.25);
+      announce(e.name + " DOWN", "#ffcf4a", 44);
+    }
+  } else {
+    if (e.elite) {
+      run.elites++;
+      announce("ELITE DOWN", "#ffcf4a", 36);
+      sfx.explode();
+    }
     dropGem(e.x, e.y, e.xp);
-    game.pickups.push({ type: "heal", x: e.x, y: e.y, r: 13, value: 0.35 });
-  } else dropGem(e.x, e.y, e.xp);
+    maybeDropPickup(e);
+  }
+  checkAch();
+
   if (e.type === "splitter") {
     for (let i = 0; i < 3; i++) {
       const a = rnd(TAU);
@@ -101,7 +163,17 @@ function killEnemy(e: Enemy): void {
         spv: rnd(-2, 2),
         flash: 0,
         boss: false,
+        elite: false,
         dead: false,
+        spawnT: 0.15,
+        phase: 0,
+        pt: 0,
+        tx: 0,
+        ty: 0,
+        fireT: 0,
+        atkT: 0,
+        bossKind: "",
+        name: "",
       });
     }
   }
@@ -117,7 +189,7 @@ export function dropGem(x: number, y: number, xp: number): void {
     vx: Math.cos(a) * s,
     vy: Math.sin(a) * s,
     value: xp,
-    r: xp >= 12 ? 8 : xp >= 5 ? 6 : 4,
+    r: xp >= 10 ? 8 : xp >= 4 ? 6 : 4,
     mag: false,
   });
 }
@@ -163,20 +235,20 @@ export function collisions(dt: number): void {
   }
   for (const w of player.weapons) {
     if (w.type !== "orbital") continue;
-    const lvl = w.level;
-    const orbs = [2, 2, 3, 3, 4, 5, 6][Math.min(lvl - 1, 6)];
-    const rad = 64 + (lvl - 1) * 8;
-    const dps = (26 + (lvl - 1) * 10) * player.dmgMul;
+    const orbs = orbsFor(w);
+    const rad = orbitRadius(w);
+    const dps = orbitDps(w);
+    const orbR = w.evolved ? 17 : 11;
     w._orbs = [];
     for (let k = 0; k < orbs; k++) {
       const oa = (w.ang || 0) + (k * TAU) / orbs;
       const ox = player.x + Math.cos(oa) * rad;
       const oy = player.y + Math.sin(oa) * rad;
       w._orbs.push({ x: ox, y: oy });
-      const near = queryCircle(ox, oy, 12 + 24);
+      const near = queryCircle(ox, oy, orbR + 26);
       for (const e of near) {
         if (e.dead) continue;
-        const rr = e.r + 11;
+        const rr = e.r + orbR;
         if ((e.x - ox) * (e.x - ox) + (e.y - oy) * (e.y - oy) < rr * rr) {
           const a = Math.atan2(e.y - player.y, e.x - player.x);
           damageEnemy(e, dps * dt, Math.cos(a) * 1.5, Math.sin(a) * 1.5, true);
@@ -186,9 +258,9 @@ export function collisions(dt: number): void {
     }
   }
   if (player.invuln <= 0) {
-    const near = queryCircle(player.x, player.y, player.radius + 30);
+    const near = queryCircle(player.x, player.y, player.radius + 60);
     for (const e of near) {
-      if (e.dead) continue;
+      if (e.dead || e.spawnT > 0.2) continue;
       const rr = player.radius + e.r;
       if ((e.x - player.x) * (e.x - player.x) + (e.y - player.y) * (e.y - player.y) < rr * rr) {
         hurtPlayer(e._dmg);

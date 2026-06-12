@@ -1,10 +1,11 @@
-// Pointer (virtual joystick), keyboard, and window-focus input handling.
+// Pointer (virtual joystick + dash button), keyboard, and focus handling.
 
 import { canvas } from "../core/canvas";
 import { game, PLAYING, PAUSED } from "../core/state";
-import { audioInit, audioResume } from "../core/audio";
-import { pauseGame, resumeGame, toggleMute } from "../ui/overlays";
-import { btnPause, btnMute, HudButton } from "../render/hud";
+import { audioInit, audioResume, AudioM, setMuted } from "../core/audio";
+import { pauseGame, resumeGame } from "../ui/overlays";
+import { tryDash } from "../game";
+import { btnPause, btnMute, btnDash, HudButton } from "../render/hud";
 
 function hitBtn(b: HudButton, x: number, y: number): boolean {
   return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
@@ -12,10 +13,12 @@ function hitBtn(b: HudButton, x: number, y: number): boolean {
 
 export function initInput(): void {
   const { joy } = game;
+  game.isTouch = matchMedia("(pointer: coarse)").matches;
 
   canvas.addEventListener("pointerdown", (e) => {
     audioInit();
     audioResume();
+    if (e.pointerType === "touch") game.isTouch = true;
     if (game.state !== PLAYING) return;
     const x = e.clientX;
     const y = e.clientY;
@@ -24,7 +27,11 @@ export function initInput(): void {
       return;
     }
     if (hitBtn(btnMute, x, y)) {
-      toggleMute();
+      setMuted(!AudioM.muted);
+      return;
+    }
+    if (game.isTouch && hitBtn(btnDash, x, y)) {
+      tryDash();
       return;
     }
     joy.active = true;
@@ -61,11 +68,15 @@ export function initInput(): void {
 
   addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    game.keys[k] = true;
-    if (k === "p") {
-      if (game.state === PLAYING) pauseGame();
-      else if (game.state === PAUSED) resumeGame();
+    if (!e.repeat) {
+      if (k === "p" || k === "escape") {
+        if (game.state === PLAYING) pauseGame();
+        else if (game.state === PAUSED) resumeGame();
+      }
+      if (k === "m") setMuted(!AudioM.muted);
+      if (k === " " || k === "shift") tryDash();
     }
+    game.keys[k] = true;
     if (k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || k === " ") e.preventDefault();
   });
   addEventListener("keyup", (e) => {
@@ -73,5 +84,8 @@ export function initInput(): void {
   });
   addEventListener("blur", () => {
     if (game.state === PLAYING) pauseGame();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && game.state === PLAYING) pauseGame();
   });
 }
