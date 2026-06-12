@@ -31,6 +31,7 @@ export function audioInit(): void {
     AudioM.musicGain = AudioM.ctx.createGain();
     AudioM.musicGain.gain.value = meta.settings.music ? 0.3 : 0;
     AudioM.musicGain.connect(AudioM.master);
+    loadSamples();
     startMusic();
   } catch (e) {
     /* ignore */
@@ -108,45 +109,107 @@ function throttled(key: string, ms: number): boolean {
   return true;
 }
 
+// ── Sampled SFX ──────────────────────────────────────────────────────────────
+// Curated one-shots (mono Vorbis, peak-normalized) decoded into buffers at init.
+// Each is balanced here so the relative mix stays consistent; the procedural
+// synthesis below stays as a fallback while buffers load (or if a fetch fails).
+
+const sampleBuffers: Record<string, AudioBuffer> = {};
+
+// Per-event playback gain. Rapid/repeated events sit low to avoid fatigue;
+// impacts and ceremonial cues sit higher. Multiplies with the 0.5 master.
+const SAMPLE_GAIN: Record<string, number> = {
+  shoot: 0.16, spread: 0.34, missile: 0.42, nova: 0.6, rail: 0.34, tesla: 0.34,
+  glaive: 0.34, hit: 0.3, explode: 0.55, bigexplode: 0.78, coin: 0.5, hurt: 0.7,
+  dash: 0.45, levelup: 0.62, evolve: 0.72, revive: 0.66, boss: 0.8, combo: 0.4,
+  mission: 0.55, unlock: 0.62, click: 0.45, gameover: 0.72,
+};
+
+const SAMPLE_NAMES = Object.keys(SAMPLE_GAIN);
+
+function loadSamples(): void {
+  if (!AudioM.ctx) return;
+  const base = import.meta.env.BASE_URL;
+  for (const name of SAMPLE_NAMES) {
+    fetch(`${base}audio/sfx/${name}.ogg`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status.toString()))))
+      .then((data) => AudioM.ctx!.decodeAudioData(data))
+      .then((buf) => {
+        sampleBuffers[name] = buf;
+      })
+      .catch(() => {
+        /* leave it absent → procedural fallback keeps working */
+      });
+  }
+}
+
+// Play a decoded sample if available. Returns false (→ caller falls back to
+// procedural) when audio is off, muted, or the buffer hasn't loaded yet.
+// `rateVar` adds ±n random pitch wobble so repeated shots/hits don't machine-gun.
+function playSample(name: string, rateVar?: number): boolean {
+  if (!AudioM.ctx || AudioM.muted || !meta.settings.sfx) return false;
+  const buf = sampleBuffers[name];
+  if (!buf) return false;
+  const src = AudioM.ctx.createBufferSource();
+  src.buffer = buf;
+  if (rateVar) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * rateVar;
+  const g = AudioM.ctx.createGain();
+  g.gain.value = SAMPLE_GAIN[name] ?? 0.5;
+  src.connect(g);
+  g.connect(AudioM.master!);
+  src.start();
+  return true;
+}
+
 export const sfx = {
   shoot() {
-    if (throttled("shoot", 55)) tone(660, 0.05, "square", 0.04, 420);
+    if (!throttled("shoot", 55)) return;
+    if (!playSample("shoot", 0.06)) tone(660, 0.05, "square", 0.04, 420);
   },
   spread() {
-    if (throttled("spread", 70)) tone(520, 0.06, "sawtooth", 0.04, 300);
+    if (!throttled("spread", 70)) return;
+    if (!playSample("spread", 0.05)) tone(520, 0.06, "sawtooth", 0.04, 300);
   },
   missile() {
-    if (throttled("missile", 90)) tone(220, 0.12, "sawtooth", 0.06, 90);
+    if (!throttled("missile", 90)) return;
+    if (!playSample("missile", 0.04)) tone(220, 0.12, "sawtooth", 0.06, 90);
   },
   nova() {
+    if (playSample("nova")) return;
     tone(140, 0.3, "sine", 0.11, 60);
     noise(0.25, 0.1, 500);
   },
   rail() {
-    if (throttled("rail", 120)) {
+    if (!throttled("rail", 120)) return;
+    if (!playSample("rail", 0.05)) {
       tone(1200, 0.14, "sawtooth", 0.08, 180);
       noise(0.12, 0.1, 3000, "highpass");
     }
   },
   tesla() {
-    if (throttled("tesla", 90)) {
+    if (!throttled("tesla", 90)) return;
+    if (!playSample("tesla", 0.06)) {
       noise(0.08, 0.1, 2400, "highpass");
       tone(900, 0.06, "square", 0.04, 1400);
     }
   },
   glaive() {
-    if (throttled("glaive", 110)) tone(340, 0.1, "triangle", 0.06, 520);
+    if (!throttled("glaive", 110)) return;
+    if (!playSample("glaive", 0.05)) tone(340, 0.1, "triangle", 0.06, 520);
   },
   hit() {
-    if (throttled("hit", 32)) noise(0.04, 0.045, 2600);
+    if (!throttled("hit", 32)) return;
+    if (!playSample("hit", 0.08)) noise(0.04, 0.045, 2600);
   },
   explode() {
-    if (throttled("explode", 60)) {
+    if (!throttled("explode", 60)) return;
+    if (!playSample("explode", 0.04)) {
       noise(0.28, 0.2, 900);
       tone(90, 0.25, "sine", 0.11, 40);
     }
   },
   bigExplode() {
+    if (playSample("bigexplode")) return;
     noise(0.5, 0.3, 700);
     tone(60, 0.55, "sine", 0.2, 28);
   },
@@ -154,12 +217,13 @@ export const sfx = {
     if (throttled("pickup", 26)) tone(880, 0.045, "triangle", 0.035, 1320);
   },
   coin() {
-    if (throttled("coin", 60)) {
-      tone(988, 0.07, "triangle", 0.08);
-      setTimeout(() => tone(1319, 0.12, "triangle", 0.08), 60);
-    }
+    if (!throttled("coin", 60)) return;
+    if (playSample("coin", 0.03)) return;
+    tone(988, 0.07, "triangle", 0.08);
+    setTimeout(() => tone(1319, 0.12, "triangle", 0.08), 60);
   },
   hurt() {
+    if (playSample("hurt")) return;
     noise(0.18, 0.18, 500);
     tone(180, 0.18, "square", 0.11, 70);
   },
@@ -167,35 +231,45 @@ export const sfx = {
     tone(58, 0.1, "sine", 0.16, 40);
   },
   dash() {
-    if (throttled("dash", 150)) noise(0.16, 0.12, 1800, "bandpass");
+    if (!throttled("dash", 150)) return;
+    if (!playSample("dash", 0.05)) noise(0.16, 0.12, 1800, "bandpass");
   },
   levelup() {
+    if (playSample("levelup")) return;
     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.16, "triangle", 0.12), i * 70));
   },
   evolve() {
+    if (playSample("evolve")) return;
     [392, 523, 659, 784, 1046, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.22, "sawtooth", 0.07), i * 70));
     noise(0.6, 0.08, 1200);
   },
   revive() {
+    if (playSample("revive")) return;
     [392, 523, 659, 880].forEach((f, i) => setTimeout(() => tone(f, 0.2, "sine", 0.13), i * 80));
   },
   boss() {
+    if (playSample("boss")) return;
     tone(70, 0.7, "sawtooth", 0.16, 55);
     noise(0.5, 0.13, 400);
   },
   combo() {
-    if (throttled("combo", 200)) tone(740, 0.09, "triangle", 0.07, 988);
+    if (!throttled("combo", 200)) return;
+    if (!playSample("combo", 0.05)) tone(740, 0.09, "triangle", 0.07, 988);
   },
   mission() {
+    if (playSample("mission")) return;
     [659, 880, 1109].forEach((f, i) => setTimeout(() => tone(f, 0.15, "triangle", 0.1), i * 90));
   },
   unlock() {
+    if (playSample("unlock")) return;
     [523, 784, 1046, 1568].forEach((f, i) => setTimeout(() => tone(f, 0.18, "triangle", 0.1), i * 80));
   },
   click() {
+    if (playSample("click")) return;
     tone(520, 0.04, "triangle", 0.05, 700);
   },
   gameover() {
+    if (playSample("gameover")) return;
     [392, 311, 233, 196].forEach((f, i) => setTimeout(() => tone(f, 0.32, "sawtooth", 0.07), i * 160));
   },
   victory() {

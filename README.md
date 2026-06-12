@@ -7,8 +7,8 @@ Fly an auto-firing starfighter through escalating swarms, dash through
 bullets, draft an evolving arsenal, and bring down the **Void Titan** at
 10:00 — then push into Overdrive for the leaderboard.
 
-Everything is rendered on a single HTML5 canvas with zero asset downloads:
-procedural graphics, procedural music, sub-100 kB gzipped.
+Graphics and music are fully procedural. Sound effects use curated, compressed
+samples (264 KB total) wired into the Web Audio API with procedural fallback.
 
 ## The game
 
@@ -55,7 +55,7 @@ procedural graphics, procedural music, sub-100 kB gzipped.
     ├── types.ts            # Shared type definitions
     ├── styles/main.css     # All overlay styling
     ├── config/             # Tuning, weapons/passives/ships/missions, icons
-    ├── core/               # State, canvas, audio + music engine, storage, SDK
+    ├── core/               # State, canvas, audio + music engine (samples + procedural), storage, SDK
     ├── systems/            # Spawning/director, enemies, weapons, combat,
     │                       # projectiles, pickups, progression, lifecycle
     ├── render/             # Background, entities, HUD, compositing
@@ -72,6 +72,18 @@ npm run build    # type-check + production build to dist/
 npm run preview  # preview the production build locally
 npm run smoke    # headless 11-minute simulation (balance & stability check)
 ```
+
+## Sound effects
+
+22 curated one-shot samples (mono Vorbis, ~4–18 KB each, 264 KB total) are
+decoded into Web Audio buffers at runtime and peak-normalized with per-event
+gain tuning. The 5 melodic cues (`pickup`, `heart`, `victory`, and the chiptune
+arpeggio notes) stay procedural to stay in key with the 112 BPM score.
+Every event falls back to procedural synthesis while buffers load or if a
+fetch fails.
+
+Sources: Shapeforms Audio Free Sound Effects (Cyberpunk Arsenal, Future UI,
+Arcane Activations, The Mint, Hit and Punch, Glitch and Noise packs).
 
 ## Deployment (GitHub Pages)
 
