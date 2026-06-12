@@ -8,8 +8,7 @@ declare global {
   }
 }
 
-const SDK: any =
-  window.CrazyGames && window.CrazyGames.SDK ? window.CrazyGames.SDK : null;
+const SDK: any = window.CrazyGames && window.CrazyGames.SDK ? window.CrazyGames.SDK : null;
 
 export let sdkReady = false;
 
@@ -23,6 +22,22 @@ void (async function () {
     sdkReady = false;
   }
 })();
+
+export function sdkLoadingStart(): void {
+  try {
+    SDK && SDK.game && SDK.game.loadingStart && SDK.game.loadingStart();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+export function sdkLoadingStop(): void {
+  try {
+    SDK && SDK.game && SDK.game.loadingStop && SDK.game.loadingStop();
+  } catch (e) {
+    /* ignore */
+  }
+}
 
 export function sdkStart(): void {
   try {
@@ -63,5 +78,28 @@ export function sdkRewarded(cb: (ok: boolean) => void): void {
     } else cb(false);
   } catch (e) {
     cb(false);
+  }
+}
+
+// Midgame ads at natural breaks (run end → retry/menu), rate-limited.
+let lastMidgame = 0;
+
+export function sdkMidgame(done: () => void, runSeconds: number): void {
+  const now = Date.now();
+  if (!sdkReady || runSeconds < 90 || now - lastMidgame < 180000) {
+    done();
+    return;
+  }
+  try {
+    if (SDK && SDK.ad && SDK.ad.requestAd) {
+      lastMidgame = now;
+      SDK.ad.requestAd("midgame", {
+        adFinished: done,
+        adError: done,
+        adStarted: function () {},
+      });
+    } else done();
+  } catch (e) {
+    done();
   }
 }

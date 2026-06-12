@@ -3,49 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>VOID DRIFT</title>
+<title>STARBREAKER — Survive the Swarm</title>
+<meta name="description" content="STARBREAKER: a fast-paced arcade survival shooter. Dash, evolve your arsenal, and break the Void Titan.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l7 16-7-4-7 4z' fill='%2346e0ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="toasts"></div>
 
 <div class="overlay" id="menu">
-  <div class="panel">
-    <div class="title">VOID DRIFT</div>
-    <div class="sub">Survive the Swarm</div>
-    <div class="cores">Cores: <b id="m-cores">0</b></div>
-    <button class="btn gold" id="m-play">&#9654; Launch</button>
-    <div class="shop" id="shop"></div>
-    <div class="hint" id="m-best">Best 0</div>
+  <div class="menu-wrap">
+    <div class="logo">STAR<span>BREAKER</span></div>
+    <div class="logo-sub">SURVIVE THE SWARM · BREAK THE TITAN</div>
+    <div class="menu-chips">
+      <div class="chip gold">◆ <b id="m-cores">0</b></div>
+      <div class="chip" id="m-best">BEST 0</div>
+    </div>
+    <button class="btn launch" id="m-play">▶&nbsp; LAUNCH</button>
+    <button class="btn cargo" id="m-cargo"><span class="cargo-ico">▣</span> CLAIM DAILY CARGO</button>
+    <div class="tabs">
+      <button class="tab on" data-tab="hangar">HANGAR</button>
+      <button class="tab" data-tab="upgrades">UPGRADES</button>
+      <button class="tab" data-tab="missions">MISSIONS</button>
+      <button class="tab" data-tab="records">RECORDS</button>
+    </div>
+    <div class="tabbody" id="tab-hangar"></div>
+    <div class="tabbody" id="tab-upgrades"></div>
+    <div class="tabbody" id="tab-missions"></div>
+    <div class="tabbody" id="tab-records"></div>
+    <div class="menu-foot">WASD / DRAG — MOVE &nbsp;·&nbsp; SHIFT / ⚡ — DASH</div>
   </div>
 </div>
 
 <div class="overlay" id="levelup">
-  <div class="panel">
+  <div class="panel lvpanel">
     <div class="lvtitle" id="lv-title">LEVEL UP</div>
+    <div class="buildstrip" id="lv-build"></div>
     <div class="cards" id="lv-cards"></div>
-    <div class="hint">Choose an upgrade</div>
+    <div class="lv-actions">
+      <button class="btn small" id="lv-reroll">⟳ REROLL (2)</button>
+      <button class="btn small ghost" id="lv-skip">SKIP</button>
+    </div>
   </div>
 </div>
 
 <div class="overlay" id="pause">
   <div class="panel">
-    <div class="title" style="font-size:34px">PAUSED</div>
+    <div class="title sm">PAUSED</div>
     <div class="sub" id="p-stat">&nbsp;</div>
-    <button class="btn cyan" id="p-resume">Resume</button>
-    <button class="btn cyan" id="p-quit">Abandon Run</button>
+    <div class="buildstrip" id="p-build"></div>
+    <div class="toggles">
+      <button class="tgl" id="t-music">MUSIC ON</button>
+      <button class="tgl" id="t-sfx">SFX ON</button>
+      <button class="tgl" id="t-shake">SHAKE ON</button>
+      <button class="tgl" id="t-dmg">DAMAGE № ON</button>
+    </div>
+    <button class="btn cyan" id="p-resume">RESUME</button>
+    <button class="btn small" id="p-restart">⟳ RESTART RUN</button>
+    <button class="btn ghost" id="p-quit">ABANDON RUN</button>
   </div>
 </div>
 
 <div class="overlay" id="gameover">
   <div class="panel">
-    <div class="title" id="go-title" style="font-size:34px;color:var(--gold);text-shadow:0 0 18px rgba(255,207,74,.6)">SECOND CHANCE</div>
-    <div class="sub" id="go-sub">Restore your ship and keep fighting</div>
+    <div class="title sm" id="go-title">RUN OVER</div>
+    <div class="sub" id="go-sub">&nbsp;</div>
     <div class="stats" id="go-stats"></div>
-    <button class="btn gold" id="go-revive">&#9654; Revive</button>
-    <button class="btn cyan" id="go-menu">End Run</button>
+    <div class="corebox" id="go-cores"></div>
+    <button class="btn gold" id="go-revive">▶ REVIVE</button>
+    <button class="btn launch" id="go-retry">⟳&nbsp; FLY AGAIN</button>
+    <button class="btn ghost" id="go-menu">MAIN MENU</button>
+  </div>
+</div>
+
+<div class="overlay" id="victory">
+  <div class="panel">
+    <div class="title sm vict">VICTORY</div>
+    <div class="sub">THE VOID TITAN IS DESTROYED · +150 ◆</div>
+    <div class="stats" id="v-stats"></div>
+    <button class="btn gold" id="v-continue">⚡ ENTER OVERDRIVE</button>
+    <button class="btn cyan" id="v-finish">FINISH RUN</button>
   </div>
 </div>
 
