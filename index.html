@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>VOID DRIFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="overlay" id="menu">
+  <div class="panel">
+    <div class="title">VOID DRIFT</div>
+    <div class="sub">Survive the Swarm</div>
+    <div class="cores">Cores: <b id="m-cores">0</b></div>
+    <button class="btn gold" id="m-play">&#9654; Launch</button>
+    <div class="shop" id="shop"></div>
+    <div class="hint" id="m-best">Best 0</div>
+  </div>
+</div>
+
+<div class="overlay" id="levelup">
+  <div class="panel">
+    <div class="lvtitle" id="lv-title">LEVEL UP</div>
+    <div class="cards" id="lv-cards"></div>
+    <div class="hint">Choose an upgrade</div>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="panel">
+    <div class="title" style="font-size:34px">PAUSED</div>
+    <div class="sub" id="p-stat">&nbsp;</div>
+    <button class="btn cyan" id="p-resume">Resume</button>
+    <button class="btn cyan" id="p-quit">Abandon Run</button>
+  </div>
+</div>
+
+<div class="overlay" id="gameover">
+  <div class="panel">
+    <div class="title" id="go-title" style="font-size:34px;color:var(--gold);text-shadow:0 0 18px rgba(255,207,74,.6)">SECOND CHANCE</div>
+    <div class="sub" id="go-sub">Restore your ship and keep fighting</div>
+    <div class="stats" id="go-stats"></div>
+    <button class="btn gold" id="go-revive">&#9654; Revive</button>
+    <button class="btn cyan" id="go-menu">End Run</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
