@@ -4,6 +4,11 @@ node_modules/
 # Build output
 dist/
 
+# CrazyGames build output — regenerate with `vite build --mode crazygames`.
+# The hand-written docs in the folder are kept tracked.
+crazygames/*
+!crazygames/*.md
+
 # Logs
 *.log
 npm-debug.log*

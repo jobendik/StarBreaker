@@ -97,11 +97,14 @@ The site is served from `https://<user>.github.io/StarBreaker/`. The Vite
 `base` is set to `/StarBreaker/` for production builds (and `vite preview`)
 so all assets resolve correctly.
 
-For CrazyGames, upload the contents of `dist/` (built with `base: "./"` or
-the platform's path). The CrazyGames SDK v3 is integrated: loading events,
-gameplay start/stop, happytime on milestones, rewarded ads for revives, and
-rate-limited midgame ads between runs — all guarded so the game runs fine
-without the SDK.
+For CrazyGames, run `npx vite build --mode crazygames` to produce the
+`crazygames/` folder, which uses relative (`base: "./"`) asset paths so it runs
+from any host path. Upload the contents of that folder; see
+`crazygames/SUBMISSION-ANSWERS.md` for the submission-form answers. The
+CrazyGames SDK v3 is integrated: loading events, gameplay start/stop, happytime
+on milestones, rewarded ads for revives, rate-limited midgame ads between runs,
+and audio muting via the SDK settings listener — all guarded so the game runs
+fine without the SDK.
 
 ## Controls
 

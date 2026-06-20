@@ -1,5 +1,7 @@
 // CrazyGames SDK integration (guarded — the SDK may be absent in local/dev).
 
+import { setPlatformMute } from "./audio";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   interface Window {
@@ -17,6 +19,15 @@ void (async function () {
     if (SDK && SDK.init) {
       await SDK.init();
       sdkReady = true;
+      // Honour CrazyGames muting audio through the SDK. The platform mutes
+      // when the user backgrounds the tab, an ad plays, etc.
+      try {
+        if (SDK.game && SDK.game.settings) setPlatformMute(!!SDK.game.settings.muteAudio);
+        if (SDK.game && SDK.game.addSettingsChangeListener)
+          SDK.game.addSettingsChangeListener((s: any) => setPlatformMute(!!(s && s.muteAudio)));
+      } catch (e) {
+        /* ignore */
+      }
     }
   } catch (e) {
     sdkReady = false;

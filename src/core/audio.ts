@@ -9,6 +9,7 @@ interface AudioManager {
   musicGain: GainNode | null;
   trackGain: GainNode | null;
   muted: boolean;
+  platformMuted: boolean;
   last: Record<string, number>;
 }
 
@@ -18,8 +19,15 @@ export const AudioM: AudioManager = {
   musicGain: null,
   trackGain: null,
   muted: false,
+  platformMuted: false,
   last: {},
 };
+
+// Effective master volume: silent when the player muted OR when the host
+// platform (CrazyGames) requested a mute via the SDK.
+function applyMasterGain(): void {
+  if (AudioM.master) AudioM.master.gain.value = AudioM.muted || AudioM.platformMuted ? 0 : 0.5;
+}
 
 export function audioInit(): void {
   if (AudioM.ctx) return;
@@ -28,7 +36,7 @@ export function audioInit(): void {
     AudioM.ctx = new AC();
     AudioM.master = AudioM.ctx.createGain();
     AudioM.muted = meta.settings.muted;
-    AudioM.master.gain.value = AudioM.muted ? 0 : 0.5;
+    applyMasterGain();
     AudioM.master.connect(AudioM.ctx.destination);
     AudioM.musicGain = AudioM.ctx.createGain();
     AudioM.musicGain.gain.value = meta.settings.music ? 0.3 : 0;
@@ -53,7 +61,14 @@ export function setMuted(m: boolean): void {
   AudioM.muted = m;
   meta.settings.muted = m;
   saveMeta();
-  if (AudioM.master) AudioM.master.gain.value = m ? 0 : 0.5;
+  applyMasterGain();
+}
+
+// Called by the CrazyGames SDK settings listener. Platform mute is transient
+// and is NOT persisted to the player's own preferences.
+export function setPlatformMute(m: boolean): void {
+  AudioM.platformMuted = m;
+  applyMasterGain();
 }
 
 export function setMusicOn(on: boolean): void {
