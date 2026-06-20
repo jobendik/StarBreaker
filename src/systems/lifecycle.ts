@@ -183,6 +183,9 @@ export function doRevive(): void {
   game.state = PLAYING;
   hideAll();
   game.last = performance.now();
+  musicPlay("game");
+  musicSetIntensity(run.overdrive ? 0.9 : 0.3);
+  musicSetBoss(false);
   sdkStart();
 }
 
